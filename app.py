@@ -102,8 +102,8 @@ def get_lyrics(artist_name, track_name):
 def home():
     limit = request.args.get('limit', DEFAULT_LIMIT, type=int)
     language = request.args.get('language', DEFAULT_LANG)
-    location = (language)
-    ytmusic = YTMusic(language=language, location=location)
+    
+    ytmusic = YTMusic(language=language, location="TR")
     result = ytmusic.get_home(limit)
     
     return create_response(result)
@@ -112,8 +112,8 @@ def home():
 def mood_categories():
     limit = request.args.get('limit', DEFAULT_LIMIT, type=int)
     language = request.args.get('language', DEFAULT_LANG)
-    location = (language)
-    ytmusic = YTMusic(language=language, location = location)
+    
+    ytmusic = YTMusic(language=language)
     result = ytmusic.get_mood_categories()
     
     return create_response(result)
@@ -125,8 +125,8 @@ def mood_playlists():
     
     if not param:
         return create_response({"error": "param parametresi zorunludur"}, 400)
-    location = (language)
-    ytmusic = YTMusic(language=language, location = location)
+    
+    ytmusic = YTMusic(language=language)
     result = ytmusic.get_mood_playlists(param)
     
     return create_response(result)
@@ -186,16 +186,16 @@ def search():
     search_type = request.args.get('type')
     language = request.args.get('language', DEFAULT_LANG)
     suggestions = request.args.get('suggestions')
-    location = (language)
+    
     if suggestions:
-        ytmusic = YTMusic(language=language, location = location)
+        ytmusic = YTMusic(language=language)
         result = ytmusic.get_search_suggestions(suggestions, detailed_runs=False)
         return create_response(result)
     
     if not q:
         return create_response({"error": "q parametresi zorunludur"}, 400)
-    location = (language)
-    ytmusic = YTMusic(language=language, location = (language))
+    
+    ytmusic = YTMusic(language=language)
     
     if search_type:
         result = ytmusic.search(q, filter=search_type)
@@ -221,9 +221,9 @@ def playlist_details(playlist_id):
 @app.route('/API/artist/<artist_id>/songs', methods=['GET'])
 def artist_songs(artist_id):
     language = request.args.get('language', DEFAULT_LANG)
-    location = (language)
+    
     try:
-        ytmusic = YTMusic(language=language, location = location)
+        ytmusic = YTMusic(language=language)
         # Sanatçı bilgilerini alalım
         artist_info = ytmusic.get_artist(artist_id)
         
@@ -246,9 +246,9 @@ def artist_songs(artist_id):
 @app.route('/API/song/<song_id>/suggestions', methods=['GET'])
 def song_suggestions(song_id):
     language = request.args.get('language', DEFAULT_LANG)
-    location = (language)
+    
     try:
-        ytmusic = YTMusic(language=language, location = location)
+        ytmusic = YTMusic(language=language)
         
         # song.suggestions.py'deki yaklaşımı kullanarak get_watch_playlist fonksiyonunu çağıralım
         watch_playlist = ytmusic.get_watch_playlist(videoId=song_id)
@@ -269,6 +269,7 @@ def song_suggestions(song_id):
 def song_download(song_id):
     path = request.args.get('path')
     language = request.args.get('language', DEFAULT_LANG)
+    
     if not path:
         return create_response({"error": "path parametresi zorunludur"}, 400)
     
@@ -303,8 +304,8 @@ def song_download(song_id):
 def song_stream(song_id):
     signature_timestamp = request.args.get('signature_timestamp', DEFAULT_SIGNATURE_TIMESTAMP)
     language = request.args.get('language', DEFAULT_LANG)
-    location = (language)
-    ytmusic = YTMusic(language=language, location = location)
+    
+    ytmusic = YTMusic(language=language)
     
     try:
         result = ytmusic.get_song(videoId=song_id, signatureTimestamp=signature_timestamp)
