@@ -76,16 +76,44 @@ def index():
     return render_template("docs.html"), 200
 
 # TASTE PROFİLE
-@app.route('/API/tasteprofile/', defaults={'country': None, 'language': None})
-@app.route('/API/tasteprofile/<country>/', defaults={'language': None})
-@app.route('/API/tasteprofile/<country>/<language>/')
-def tasteprofile(country, language):
+@app.route('/API/tasteprofile2/', defaults={'country': None, 'language': None})
+@app.route('/API/tasteprofile2/<country>/', defaults={'language': None})
+@app.route('/API/tasteprofile2/<country>/<language>/')
+def tasteprofile2(country, language):
     country = country or DEFAULT_COUNTRY  # Varsayılan değerleri kullan
     language = language or DEFAULT_LANG
     ytmusic = YTMusic(language=language, location=country)
     result = ytmusic.get_tasteprofile()
 
     return create_response(result)
+
+def get_artist_image_url(channel_id):
+    ytmusic = YTMusic()
+    artist_info = ytmusic.get_artist(channel_id)
+    thumbnails = artist_info['thumbnails']
+    highest_res_thumbnail = thumbnails[-1]  
+    image_url = highest_res_thumbnail['url']
+    return image_url
+
+@app.route('/API/tasteprofile/', defaults={'playlist_id': None, 'country': None, 'language': None}) 
+@app.route('/API/tasteprofile/<playlist_id>/', defaults={'country': None, 'language': None})
+@app.route('/API/tasteprofile/<playlist_id>/<country>/', defaults={'language': None})
+@app.route('/API/tasteprofile/<playlist_id>/<country>/<language>/')
+def tasteprofile(country, language, playlist_id): 
+    playlist_id = playlist_id or None
+    country = country or DEFAULT_COUNTRY  # Varsayılan değerleri kullan
+    language = language or DEFAULT_LANG
+    ytmusic = YTMusic(language=language, location=country)
+    
+    result = ytmusic.get_playlist(playlist_id)
+    artists_list = []
+
+    for track in result['tracks']:
+        for artist in track['artists']:
+            artist_id = artist['id']
+            artist_name = (artist['name'] )
+            artists_list.append((artist_name, artist_id))
+    return {"artists": [{"name": artist_name, "id": artist_id} for artist_name, artist_id in artists_list]}
 
 # HOME
 @app.route('/API/home/', defaults={'country': None, 'language': None, 'limit': None})
