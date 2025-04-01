@@ -1,9 +1,12 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, render_template
 import json
 from ytmusicapi import YTMusic
 import os
 import requests
-import yt_dlp
+from dotenv import load_dotenv
+
+# .env dosyasını yükle (varsa)
+load_dotenv()
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # Türkçe karakterlerin düzgün görüntülenmesi için
@@ -19,6 +22,7 @@ def add_header(response):
 # Varsayılan değerler
 DEFAULT_LIMIT = 10
 DEFAULT_LANG = "tr"
+DEFAULT_COUNTRY ="TR"
 DEFAULT_START = 1
 DEFAULT_END = 50
 DEFAULT_SIGNATURE_TIMESTAMP = 123456
@@ -49,8 +53,305 @@ def clean_unicode_chars(text):
         return text.encode('latin1').decode('utf-8') if '\\u' in text else text
     return text
 
-def get_lyrics(artist_name, track_name):
-    api_url = f"https://lrclib.net/api/get?artist_name={artist_name}&track_name={track_name}"
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template("404.html"), 404 # HTTP 404 kodu ile döndür
+
+@app.errorhandler(500)
+def page_not_found(error):
+    return render_template("404.html"), 500 # HTTP 500 kodu ile döndür
+
+# 404
+@app.route("/404")
+def custom_404():
+    return render_template("404.html"), 404  # HTTP 404 kodu ile döndür
+
+@app.route("/docs")
+def docs():
+    return render_template("docs.html"), 200
+
+# Ana sayfa
+@app.route('/')
+def index():
+    return render_template("docs.html"), 200
+
+# TASTE PROFİLE
+@app.route('/API/tasteprofile/', defaults={'country': None, 'language': None})
+@app.route('/API/tasteprofile/<country>/', defaults={'language': None})
+@app.route('/API/tasteprofile/<country>/<language>/')
+def tasteprofile(country, language):
+    country = country or DEFAULT_COUNTRY  # Varsayılan değerleri kullan
+    language = language or DEFAULT_LANG
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_tasteprofile()
+
+    return create_response(result)
+
+# HOME
+@app.route('/API/home/', defaults={'country': None, 'language': None, 'limit': None})
+@app.route('/API/home/<country>/', defaults={'language': None, 'limit': None})
+@app.route('/API/home/<country>/<language>/', defaults={'limit': None})
+@app.route('/API/home/<country>/<language>/<int:limit>/')
+def home(country, language, limit):
+    country = country or DEFAULT_COUNTRY  # Varsayılan değerleri kullan
+    language = language or DEFAULT_LANG
+    limit = limit or DEFAULT_LIMIT
+
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_home(limit)
+
+    return create_response(result)
+
+# MOOD CATEGORİES
+@app.route('/API/mood/categories/', defaults={'country': None, 'language': None})
+@app.route('/API/mood/categories/<country>/', defaults={'language': None})
+@app.route('/API/mood/categories/<country>/<language>/')
+def mood_categories(country, language):
+    country = country or DEFAULT_COUNTRY  # Varsayılan değerleri kullan
+    language = language or DEFAULT_LANG
+
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_mood_categories()
+
+    return create_response(result)
+
+# MOOD PLAYLIST
+@app.route('/API/mood/playlist/', defaults={'param': None, 'country': None, 'language': None})
+@app.route('/API/mood/playlist/<param>/', defaults={'country': None,'language': None})
+@app.route('/API/mood/playlist/<param>/<country>/', defaults={'language': None})
+@app.route('/API/mood/playlist/<param>/<country>/<language>/')
+def mood_playlists(param, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    param = param or None  # param zorunlu değil
+    language = language or DEFAULT_LANG  # Eğer language parametresi verilmezse varsayılan değer kullanılır
+    country = country or DEFAULT_COUNTRY
+
+    if not param:
+        return create_response({"error": "param parametresi zorunludur"}, 400)
+    
+    try:
+        # YTMusic nesnesi oluşturuluyor
+        ytmusic = YTMusic(language=language, location=country)
+        
+        # Mood Playlists verilerini al
+        result = ytmusic.get_mood_playlists(param)
+        
+        # Sonuç kontrolü
+        if result is None:
+            return create_response({"error": "Mood Playlists için veri bulunamadı"}, 404)
+        
+        return create_response(result)
+    
+    except Exception as e:
+        print(f"Mood playlists alınırken hata: {str(e)}")
+        return create_response({"error": f"Mood playlists alınırken hata oluştu: {str(e)}"}, 500)
+
+# TRENDS MUSİCS
+@app.route('/API/trends/', defaults={'country': None, 'language': None})
+@app.route('/API/trends/<country>/', defaults={'language': None})
+@app.route('/API/trends/<country>/<language>/')
+def trends(country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+
+    if not country:
+        return create_response({"error": "country parametresi zorunludur"}, 400)
+    
+    try:
+        # YTMusic nesnesi oluşturuluyor
+        ytmusic = YTMusic(language=language, location=country)
+        
+        # Trend bilgilerini alırken hata ayıklama için
+        print(f"Trendler için istek: ülke={country}, dil={language}")
+        
+        # Trendler için veriyi al
+        result = ytmusic.get_charts(country)
+        
+        # Sonucun içeriğini kontrol et
+        if result is None:
+            return create_response({"error": "Trendler için veri bulunamadı"}, 404)
+        
+        # Serileştirilebilir veriler için fonksiyon
+        def is_json_serializable(obj):
+            try:
+                json.dumps(obj)
+                return True
+            except (TypeError, OverflowError):
+                return False
+        
+        # Serileştirilemez verileri süzme fonksiyonu
+        def filter_non_serializable(data):
+            if isinstance(data, dict):
+                return {k: filter_non_serializable(v) for k, v in data.items() if is_json_serializable(k)}
+            elif isinstance(data, list):
+                return [filter_non_serializable(item) for item in data if is_json_serializable(item)]
+            elif is_json_serializable(data):
+                return data
+            else:
+                return str(data)
+        
+        # Veri yapısını temizle
+        filtered_result = filter_non_serializable(result)
+        
+        return create_response(filtered_result)
+    
+    except Exception as e:
+        print(f"Trendler alınırken hata: {str(e)}")
+        return create_response({"error": f"Trendler alınırken hata oluştu: {str(e)}"}, 500)
+
+# SEARCH 
+@app.route('/API/search/', defaults={'q': None, 'search_type': None, 'country': None, 'language': None})
+@app.route('/API/search/<q>/', defaults={'search_type': None, 'country': None, 'language': None})
+@app.route('/API/search/<q>/<search_type>/', defaults={'country': None, 'language': None})
+@app.route('/API/search/<q>/<search_type>/<country>/<language>/')
+def search(q, search_type, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    q = q or None
+    search_type = search_type or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+
+    # Eğer q parametresi eksikse hata mesajı
+    if not q:
+        return create_response({"error": "q parametresi zorunludur"}, 400)
+
+    # Eğer search_type "suggestions" ise, arama önerileri al
+    if search_type == "suggestions":
+        try:
+            ytmusic = YTMusic(language=language, location=country)
+            result = ytmusic.get_search_suggestions(q, detailed_runs=False)  # suggestions özelliği
+            return create_response(result)
+        except Exception as e:
+            print(f"Öneri alınırken hata: {str(e)}")
+            return create_response({"error": f"Öneri alınırken hata oluştu: {str(e)}"}, 500)
+
+    # Eğer search_type "all" ise, genel arama yapılır
+    if search_type == "all":
+        try:
+            ytmusic = YTMusic(language=language, location=country)
+            result = ytmusic.search(q)  # Genel arama
+            return create_response(result)
+        except Exception as e:
+            print(f"Genel arama yapılırken hata: {str(e)}")
+            return create_response({"error": f"Genel arama yapılırken hata oluştu: {str(e)}"}, 500)
+
+    # Diğer türlerde (normal arama) arama yapılır
+    try:
+        ytmusic = YTMusic(language=language, location=country)
+        
+        # search_type varsa, ona göre arama yapılır, yoksa genel arama yapılır
+        if search_type:
+            result = ytmusic.search(q, filter=search_type)
+        else:
+            result = ytmusic.search(q)
+        
+        return create_response(result)
+    except Exception as e:
+        print(f"Arama yapılırken hata: {str(e)}")
+        return create_response({"error": f"Arama yapılırken hata oluştu: {str(e)}"}, 500)
+
+# ARTIST DETAİLS
+@app.route('/API/artist/', defaults={'artist_id': None,  'country': None, 'language': None})
+@app.route('/API/artist/<artist_id>/', defaults={ 'country': None, 'language': None})
+@app.route('/API/artist/<artist_id>/<country>/', defaults={'language': None})
+@app.route('/API/artist/<artist_id>/<country>/<language>/')
+def artist_details(artist_id, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    artist_id = artist_id or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_artist(artist_id)
+
+    return create_response(result)
+
+# ARTIST SONGS
+@app.route('/API/artist/songs/', defaults={'artist_id': None,  'country': None, 'language': None})
+@app.route('/API/artist/songs/<artist_id>/', defaults={ 'country': None, 'language': None})
+@app.route('/API/artist/songs/<artist_id>/<country>/', defaults={'language': None})
+@app.route('/API/artist/songs/<artist_id>/<country>/<language>/')
+def artist_songs(artist_id, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    artist_id = artist_id or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_artist(artist_id)
+
+    return create_response(result)
+
+# PLAYLİST DETAILS
+@app.route('/API/playlist/', defaults={'playlist_id': None,  'country': None, 'language': None})
+@app.route('/API/playlist/<playlist_id>/', defaults={ 'country': None, 'language': None})
+@app.route('/API/playlist/<playlist_id>/<country>/', defaults={'language': None})
+@app.route('/API/playlist/<playlist_id>/<country>/<language>/')
+def playlist_details(playlist_id, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    playlist_id = playlist_id or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+
+    ytmusic = YTMusic(language=language, location=country)
+    result = ytmusic.get_playlist(playlist_id)
+    
+    return create_response(result)
+
+# SONG SUGGESTIONS
+@app.route('/API/song/suggestions/', defaults={'song_id': None,  'country': None, 'language': None})
+@app.route('/API/song/suggestions/<song_id>/', defaults={ 'country': None, 'language': None})
+@app.route('/API/song/suggestions/<song_id>/<country>/', defaults={'language': None})
+@app.route('/API/song/suggestions/<song_id>/<country>/<language>/')
+def song_suggestions(song_id, country, language):
+    # Parametrelerin varsayılan değerler ile alınması
+    song_id = song_id or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+    try:
+        ytmusic = YTMusic(language=language, location=country)
+        
+        # song.suggestions.py'deki yaklaşımı kullanarak get_watch_playlist fonksiyonunu çağıralım
+        watch_playlist = ytmusic.get_watch_playlist(videoId=song_id)
+        
+        # Önerileri kontrol edelim
+        if "tracks" in watch_playlist and watch_playlist["tracks"]:
+            related_tracks = watch_playlist["tracks"]
+            # İlk 50 öneriyi döndürelim (varsa)
+            result = related_tracks[:50]
+            return create_response(result)
+        else:
+            return create_response({"error": "Bu şarkı için öneri bulunamadı"}, 404)
+            
+    except Exception as e:
+        return create_response({"error": f"Öneriler getirilirken hata oluştu: {str(e)}"}, 500)
+
+#SONG STREAM
+@app.route('/API/stream/', defaults={'song_id': None,  'country': None, 'language': None, 'signature_timestamp': None})
+@app.route('/API/stream/<song_id>/', defaults={ 'country': None, 'language': None, 'signature_timestamp': None})
+@app.route('/API/stream/<song_id>/<country>/', defaults={'language': None, 'signature_timestamp': None})
+@app.route('/API/stream/<song_id>/<country>/<language>/', defaults={'signature_timestamp': None})
+@app.route('/API/stream/<song_id>/<country>/<language>/<int:signature_timestamp>/')
+def song_stream(song_id, signature_timestamp, country, language):
+    song_id = song_id or None
+    country = country or DEFAULT_COUNTRY
+    language = language or DEFAULT_LANG
+    signature_timestamp = signature_timestamp or DEFAULT_SIGNATURE_TIMESTAMP
+
+    ytmusic = YTMusic(language=language, location=country)
+    
+    result = ytmusic.get_song(videoId=song_id, signatureTimestamp=signature_timestamp)
+    return create_response(result)
+
+# LYRICS
+@app.route('/API/lyrics/', defaults={'song': None, 'artist': None})
+@app.route('/API/lyrics/<artist>/', defaults={'song': None})
+@app.route('/API/lyrics/<artist>/<song>/')
+def lyrics(artist, song):
+    song = song or None
+    artist = artist or None
+    api_url = f"https://lrclib.net/api/get?artist_name={artist}&track_name={song}"
     
     try:
         response = requests.get(api_url)
@@ -98,236 +399,7 @@ def get_lyrics(artist_name, track_name):
             mimetype='application/json; charset=utf-8'
         )
 
-@app.route('/API/home/', methods=['GET'])
-def home():
-    limit = request.args.get('limit', DEFAULT_LIMIT, type=int)
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    ytmusic = YTMusic(language=language, location="TR")
-    result = ytmusic.get_home(limit)
-    
-    return create_response(result)
-
-@app.route('/API/mood/categories/', methods=['GET'])
-def mood_categories():
-    limit = request.args.get('limit', DEFAULT_LIMIT, type=int)
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    ytmusic = YTMusic(language=language)
-    result = ytmusic.get_mood_categories()
-    
-    return create_response(result)
-
-@app.route('/API/mood/playlists/', methods=['GET'])
-def mood_playlists():
-    param = request.args.get('param')
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    if not param:
-        return create_response({"error": "param parametresi zorunludur"}, 400)
-    
-    ytmusic = YTMusic(language=language)
-    result = ytmusic.get_mood_playlists(param)
-    
-    return create_response(result)
-
-@app.route('/API/trends/', methods=['GET'])
-def trends():
-    country = request.args.get('country')
-    
-    if not country:
-        return create_response({"error": "country parametresi zorunludur"}, 400)
-    
-    try:
-        ytmusic = YTMusic()
-        
-        # Trend bilgilerini alırken hata ayıklama için
-        print(f"Trendler için istek: ülke={country}")
-        
-        # get_charts fonksiyonunu çağıralım ve sonucu yazdıralım
-        result = ytmusic.get_charts(country)
-
-        
-        # Sonucun içeriğini kontrol edelim
-        if result is None:
-            return create_response({"error": "Trendler için veri bulunamadı"}, 404)
-            
-        
-        # Serileştirilebilir veriler için fonksiyon
-        def is_json_serializable(obj):
-            try:
-                json.dumps(obj)
-                return True
-            except (TypeError, OverflowError):
-                return False
-                
-        # Serileştirilemez verileri süzme fonksiyonu
-        def filter_non_serializable(data):
-            if isinstance(data, dict):
-                return {k: filter_non_serializable(v) for k, v in data.items() if is_json_serializable(k)}
-            elif isinstance(data, list):
-                return [filter_non_serializable(item) for item in data if is_json_serializable(item)]
-            elif is_json_serializable(data):
-                return data
-            else:
-                return str(data)
-        
-        # Veri yapısını temizleyelim
-        filtered_result = filter_non_serializable(result)
-        
-        return create_response(filtered_result)
-    except Exception as e:
-        print(f"Trendler alınırken hata: {str(e)}")
-        return create_response({"error": f"Trendler alınırken hata oluştu: {str(e)}"}, 500)
-
-@app.route('/API/search/', methods=['GET'])
-def search():
-    q = request.args.get('q')
-    search_type = request.args.get('type')
-    language = request.args.get('language', DEFAULT_LANG)
-    suggestions = request.args.get('suggestions')
-    
-    if suggestions:
-        ytmusic = YTMusic(language=language)
-        result = ytmusic.get_search_suggestions(suggestions, detailed_runs=False)
-        return create_response(result)
-    
-    if not q:
-        return create_response({"error": "q parametresi zorunludur"}, 400)
-    
-    ytmusic = YTMusic(language=language)
-    
-    if search_type:
-        result = ytmusic.search(q, filter=search_type)
-    else:
-        result = ytmusic.search(q)
-    
-    return create_response(result)
-
-@app.route('/API/artist/<artist_id>', methods=['GET'])
-def artist_details(artist_id):
-    ytmusic = YTMusic()
-    result = ytmusic.get_artist(artist_id)
-    
-    return create_response(result)
-
-@app.route('/API/playlist/<playlist_id>', methods=['GET'])
-def playlist_details(playlist_id):
-    ytmusic = YTMusic()
-    result = ytmusic.get_playlist(playlist_id)
-    
-    return create_response(result)
-
-@app.route('/API/artist/<artist_id>/songs', methods=['GET'])
-def artist_songs(artist_id):
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    try:
-        ytmusic = YTMusic(language=language)
-        # Sanatçı bilgilerini alalım
-        artist_info = ytmusic.get_artist(artist_id)
-        
-        # Sanatçının şarkılarını içeren bir sonuç oluşturalım
-        result = {}
-        
-        # Sanatçı bilgisi içinde "songs" alanı varsa şarkıları alalım
-        if "songs" in artist_info:
-            result["songs"] = artist_info["songs"]
-        
-        # Albümler, singles veya videos gibi diğer içerikleri de ekleyelim
-        for section in ["albums", "singles", "videos"]:
-            if section in artist_info:
-                result[section] = artist_info[section]
-        
-        return create_response(result)
-    except Exception as e:
-        return create_response({"error": f"Sanatçı şarkıları getirilirken hata oluştu: {str(e)}"}, 500)
-
-@app.route('/API/song/<song_id>/suggestions', methods=['GET'])
-def song_suggestions(song_id):
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    try:
-        ytmusic = YTMusic(language=language)
-        
-        # song.suggestions.py'deki yaklaşımı kullanarak get_watch_playlist fonksiyonunu çağıralım
-        watch_playlist = ytmusic.get_watch_playlist(videoId=song_id)
-        
-        # Önerileri kontrol edelim
-        if "tracks" in watch_playlist and watch_playlist["tracks"]:
-            related_tracks = watch_playlist["tracks"]
-            # İlk 50 öneriyi döndürelim (varsa)
-            result = related_tracks[:50]
-            return create_response(result)
-        else:
-            return create_response({"error": "Bu şarkı için öneri bulunamadı"}, 404)
-            
-    except Exception as e:
-        return create_response({"error": f"Öneriler getirilirken hata oluştu: {str(e)}"}, 500)
-
-@app.route('/API/song/<song_id>/download', methods=['GET'])
-def song_download(song_id):
-    path = request.args.get('path')
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    if not path:
-        return create_response({"error": "path parametresi zorunludur"}, 400)
-    
-    url = f"https://www.youtube.com/watch?v={song_id}"
-    
-    try:
-        # Ses dosyasını indirme seçenekleri
-        ydl_opts = {
-            'format': 'bestaudio/best',  # En iyi ses formatını seç
-            'quiet': False,  # Daha fazla bilgi al
-            'extractaudio': True,  # Ses dosyasını çıkar
-            'audioquality': 1,  # En yüksek ses kalitesi
-            'noplaylist': True,  # Playlist yerine sadece tek video
-            'outtmpl': f'{path}/%(id)s.%(ext)s',  # Dosyanın kaydedileceği yer
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            
-        response_data = {
-            "status": "success", 
-            "message": f"Şarkı {path} yoluna indirildi", 
-            "filename": f"{info['id']}.{info['ext'] if 'ext' in info else 'mp3'}"
-        }
-        
-        return create_response(response_data)
-            
-    except Exception as e:
-        return create_response({"error": str(e)}, 500)
-
-@app.route('/API/song/<song_id>/stream', methods=['GET'])
-def song_stream(song_id):
-    signature_timestamp = request.args.get('signature_timestamp', DEFAULT_SIGNATURE_TIMESTAMP)
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    ytmusic = YTMusic(language=language)
-    
-    try:
-        result = ytmusic.get_song(videoId=song_id, signatureTimestamp=signature_timestamp)
-        return create_response(result)
-    except Exception as e:
-        return create_response({"error": str(e)}, 500)
-
-@app.route('/API/lyrics/', methods=['GET'])
-def lyrics():
-    song = request.args.get('song')
-    artist = request.args.get('artist')
-    language = request.args.get('language', DEFAULT_LANG)
-    
-    if not song or not artist:
-        return create_response({"error": "song ve artist parametreleri zorunludur"}, 400)
-    
-    try:
-        lyrics_data = get_lyrics(artist, song)
-        return lyrics_data
-    except Exception as e:
-        return create_response({"error": str(e)}, 500)
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) 
-    
+    # Render.com için port ayarı
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False) 
