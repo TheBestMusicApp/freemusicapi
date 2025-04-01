@@ -204,6 +204,7 @@ def trends(country, language):
 @app.route('/API/search/', defaults={'q': None, 'search_type': None, 'country': None, 'language': None})
 @app.route('/API/search/<q>/', defaults={'search_type': None, 'country': None, 'language': None})
 @app.route('/API/search/<q>/<search_type>/', defaults={'country': None, 'language': None})
+@app.route('/API/search/<q>/<search_type>/', defaults={'language': None})
 @app.route('/API/search/<q>/<search_type>/<country>/<language>/')
 def search(q, search_type, country, language):
     # Parametrelerin varsayılan değerler ile alınması
