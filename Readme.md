@@ -1,6 +1,6 @@
 # YouTube Music API Servisi
 
-Bu proje, YouTube Music API'sine erişim sağlayan bir Flask uygulamasıdır.
+Bu proje, YouTube Music API'sine ücretsiz erişim sağlayan bir Flask uygulamasıdır.
 
 ## Kurulum
 
@@ -16,74 +16,69 @@ python app.py
 
 ### Ana Sayfa Verileri
 ```
-http://localhost:5000/API/home/?limit=10&language=tr
+[https://freemusicapi.onrender.com/API/home/TR/tr/15/](https://freemusicapi.onrender.com/API/home/TR/tr/15/)
 ```
 
 ### Mood Kategorileri
 ```
-http://localhost:5000/API/mood/categories/?limit=10&language=tr
+[https://freemusicapi.onrender.com//API/tasteprofile/TR/tr/](https://freemusicapi.onrender.com//API/tasteprofile/TR/tr/)
 ```
 
 ### Mood Playlistleri
 ```
-http://localhost:5000/API/mood/playlists/?param=ggMPOg1uXzIxYkNac21YZ2Z0&language=tr
+[https://freemusicapi.onrender.com/API/mood/playlist/ggMPOg1uXzIxYkNac21YZ2Z0/TR/tr/](https://freemusicapi.onrender.com/API/mood/playlist/ggMPOg1uXzIxYkNac21YZ2Z0/TR/tr/)
 ```
 
 ### Trendler
 ```
-http://localhost:5000/API/trends/?country=TR
+[https://freemusicapi.onrender.com/API/trends/TR/tr](https://freemusicapi.onrender.com/API/trends/TR/tr)
 ```
 
 ### Arama
 ```
-http://localhost:5000/API/search/?q=nimet&language=tr
-http://localhost:5000/API/search/?q=nimet&type=songs&language=tr
-http://localhost:5000/API/search/?q=nimet&type=artists&language=tr
-http://localhost:5000/API/search/?q=nimet&type=albums&language=tr
-http://localhost:5000/API/search/?q=nimet&type=playlists&language=tr
-http://localhost:5000/API/search/?q=nimet&type=videos&language=tr
-http://localhost:5000/API/search/?q=nimet&type=podcasts&language=tr
-http://localhost:5000/API/search/?q=nimet&type=episodes&language=tr
+[https://freemusicapi.onrender.com/API/search/nimet/all/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/all/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/songs/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/songs/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/albums/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/albums/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/playlists/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/playlists/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/videos/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/videos/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/podcasts/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/podcasts/TR/tr)
+[https://freemusicapi.onrender.com/API/search/nimet/episodes/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/episodes/TR/tr)
+
 ```
 
 ### Arama Önerileri
 ```
-http://localhost:5000/API/search/?suggestions=nimet&language=tr
+[https://freemusicapi.onrender.com/API/search/nimet/suggestions/TR/tr](https://freemusicapi.onrender.com/API/search/nimet/suggestions/TR/tr)
 ```
 
 ### Sanatçı Bilgileri
 ```
-http://localhost:5000/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g
+[https://freemusicapi.onrender.com/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g](https://freemusicapi.onrender.com/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g)
 ```
 
 ### Playlist Bilgileri
 ```
-http://localhost:5000/API/playlist/RDCLAK5uy_nX6UmhaEyaWe200N_vATudKrScwKqiawI
+[https://freemusicapi.onrender.com/API/playlist/RDCLAK5uy_nX6UmhaEyaWe200N_vATudKrScwKqiawI/TR/tr](https://freemusicapi.onrender.com/API/playlist/RDCLAK5uy_nX6UmhaEyaWe200N_vATudKrScwKqiawI/TR/tr)
 ```
 
 ### Sanatçı Şarkıları
 ```
-http://localhost:5000/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g/songs?start=1&end=50&language=tr
+[https://freemusicapi.onrender.com/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g/TR/tr](https://freemusicapi.onrender.com/API/artist/UCBEUl6RYNAz4MDeEKXQPL3g/TR/tr)
 ```
 
 ### Şarkı Önerileri
 ```
-http://localhost:5000/API/song/6F_ODhFVVow/suggestions?limit=10&language=tr
-```
-
-### Şarkı İndirme
-```
-http://localhost:5000/API/song/6F_ODhFVVow/download?path=\cıktı&language=tr
+[https://freemusicapi.onrender.com/API/song/suggestions/6F_ODhFVVow/TR/tr](https://freemusicapi.onrender.com/API/song/suggestions/6F_ODhFVVow/TR/tr)
 ```
 
 ### Şarkı Stream
 ```
-http://localhost:5000/API/song/6F_ODhFVVow/stream?signature_timestamp=123456&language=tr
+[https://freemusicapi.onrender.com/API/stream/song/6F_ODhFVVow/TR/tr/123456](https://freemusicapi.onrender.com/API/stream/song/6F_ODhFVVow/TR/tr/123456)
 ```
 
 ### Şarkı Sözleri
 ```
-http://localhost:5000/API/lyrics/?song=nimet&artist=didomido&language=tr
+[https://freemusicapi.onrender.com/API/lyrics/diodmido/nimet](https://freemusicapi.onrender.com/API/lyrics/diodmido/nimet)
 ```
 
 ## Parametre Açıklamaları
